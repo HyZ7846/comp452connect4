@@ -8,6 +8,8 @@ import javafx.scene.paint.Color;
 import javafx.scene.shape.Circle;
 import javafx.scene.shape.Rectangle;
 import javafx.stage.Stage;
+import javafx.scene.text.Font;
+import javafx.scene.text.FontWeight;
 import javafx.scene.text.Text;
 
 public class Connect4 extends Application {
@@ -15,10 +17,10 @@ public class Connect4 extends Application {
     private static final int COLUMNS = 7;
     private static final int ROWS = 7; // Adjusted for 7x7 grid
     private static final int TILE_SIZE = 100;
+    private static final int DEPTH_CUTOFF = 8; // Depth cutoff for minimax
     private int[] nextAvailableRow = new int[COLUMNS]; // Track the next available row for each column
     private Circle[][] grid = new Circle[ROWS][COLUMNS]; // Track the placed chips
     private GridPane gridPane = new GridPane();
-    private boolean isPlayerOneTurn = true; // Track the current player
     private Text winText = new Text(); // Display the win message
 
     @Override
@@ -47,7 +49,10 @@ public class Connect4 extends Application {
             }
         }
 
-        gridPane.add(winText, 0, ROWS, COLUMNS, 1); // Add win text below the grid
+        // Style and add win text below the grid
+        winText.setFont(Font.font("Arial", FontWeight.BOLD, 24));
+        winText.setFill(Color.BLACK);
+        gridPane.add(winText, 0, ROWS, COLUMNS, 1);
 
         Scene scene = new Scene(gridPane, COLUMNS * TILE_SIZE, ROWS * TILE_SIZE + TILE_SIZE);
         primaryStage.setTitle("Connect4");
@@ -55,6 +60,7 @@ public class Connect4 extends Application {
         primaryStage.show();
     }
 
+    // Handle the button click to place a white chip and trigger the computer's move
     private void handleButtonClick(int column) {
         int row = nextAvailableRow[column];
         if (row < 1) {
@@ -63,17 +69,15 @@ public class Connect4 extends Application {
             return;
         }
 
-        // Create a chip for the current player
+        // Create a white chip
         Circle chip = new Circle(TILE_SIZE / 2 - 5);
-        chip.setFill(isPlayerOneTurn ? Color.WHITE : Color.RED);
+        chip.setFill(Color.WHITE);
         gridPane.add(chip, column, row);
         grid[row][column] = chip;
 
         // Check for a win
-        if (checkWin(row, column)) {
-            String winningColor = isPlayerOneTurn ? "White" : "Red";
-            winText.setText(winningColor + " wins the game!");
-            winText.setFill(isPlayerOneTurn ? Color.WHITE : Color.RED);
+        if (checkWin(row, column, Color.WHITE)) {
+            winText.setText("White wins the game!");
             disableButtons(); // Disable buttons after a win
             return;
         }
@@ -81,21 +85,150 @@ public class Connect4 extends Application {
         // Update the next available row for this column
         nextAvailableRow[column]--;
 
-        // Switch turn
-        isPlayerOneTurn = !isPlayerOneTurn;
-
         // Print the column and row for debugging
-        System.out.println("Dropped " + (isPlayerOneTurn ? "White" : "Red") + " chip in column: " + column + ", row: " + row);
+        System.out.println("Dropped White chip in column: " + column + ", row: " + row);
+
+        // Computer's turn to place a black chip
+        computerMove();
     }
 
-    private boolean checkWin(int row, int column) {
-        Color color = (Color) grid[row][column].getFill();
+    // Computer's move using minimax with alpha-beta pruning
+    private void computerMove() {
+        int bestColumn = -1;
+        int bestValue = Integer.MIN_VALUE;
+        for (int col = 0; col < COLUMNS; col++) {
+            int row = nextAvailableRow[col];
+            if (row >= 1) {
+                grid[row][col] = new Circle(TILE_SIZE / 2 - 5, Color.BLACK);
+                nextAvailableRow[col]--;
+                int moveValue = minimax(0, false, Integer.MIN_VALUE, Integer.MAX_VALUE);
+                grid[row][col] = null;
+                nextAvailableRow[col]++;
+                if (moveValue > bestValue) {
+                    bestValue = moveValue;
+                    bestColumn = col;
+                }
+            }
+        }
+
+        if (bestColumn != -1) {
+            int row = nextAvailableRow[bestColumn];
+            Circle chip = new Circle(TILE_SIZE / 2 - 5);
+            chip.setFill(Color.BLACK);
+            gridPane.add(chip, bestColumn, row);
+            grid[row][bestColumn] = chip;
+            nextAvailableRow[bestColumn]--;
+
+            if (checkWin(row, bestColumn, Color.BLACK)) {
+                winText.setText("Black wins the game!");
+                disableButtons(); // Disable buttons after a win
+                return;
+            }
+        }
+    }
+
+    // Minimax algorithm with alpha-beta pruning
+    private int minimax(int depth, boolean isMaximizing, int alpha, int beta) {
+        if (depth == DEPTH_CUTOFF) {
+            return evaluateBoard();
+        }
+
+        if (isMaximizing) {
+            int maxEval = Integer.MIN_VALUE;
+            for (int col = 0; col < COLUMNS; col++) {
+                int row = nextAvailableRow[col];
+                if (row >= 1) {
+                    grid[row][col] = new Circle(TILE_SIZE / 2 - 5, Color.BLACK);
+                    nextAvailableRow[col]--;
+                    int eval = minimax(depth + 1, false, alpha, beta);
+                    grid[row][col] = null;
+                    nextAvailableRow[col]++;
+                    maxEval = Math.max(maxEval, eval);
+                    alpha = Math.max(alpha, eval);
+                    if (beta <= alpha) {
+                        break;
+                    }
+                }
+            }
+            return maxEval;
+        } else {
+            int minEval = Integer.MAX_VALUE;
+            for (int col = 0; col < COLUMNS; col++) {
+                int row = nextAvailableRow[col];
+                if (row >= 1) {
+                    grid[row][col] = new Circle(TILE_SIZE / 2 - 5, Color.WHITE);
+                    nextAvailableRow[col]--;
+                    int eval = minimax(depth + 1, true, alpha, beta);
+                    grid[row][col] = null;
+                    nextAvailableRow[col]++;
+                    minEval = Math.min(minEval, eval);
+                    beta = Math.min(beta, eval);
+                    if (beta <= alpha) {
+                        break;
+                    }
+                }
+            }
+            return minEval;
+        }
+    }
+
+    // Evaluate the board state
+    private int evaluateBoard() {
+        int score = 0;
+        for (int row = 1; row < ROWS; row++) {
+            for (int col = 0; col < COLUMNS; col++) {
+                if (grid[row][col] != null) {
+                    Color color = (Color) grid[row][col].getFill();
+                    if (color == Color.BLACK) {
+                        score += evaluatePosition(row, col, color);
+                    } else if (color == Color.WHITE) {
+                        score -= evaluatePosition(row, col, color);
+                    }
+                }
+            }
+        }
+        return score;
+    }
+
+    // Evaluate the position by counting sequences of 2, 3, and 4 consecutive chips
+    private int evaluatePosition(int row, int column, Color color) {
+        return (countConsecutive(row, column, 1, 0, color) +
+                countConsecutive(row, column, 0, 1, color) +
+                countConsecutive(row, column, 1, 1, color) +
+                countConsecutive(row, column, 1, -1, color));
+    }
+
+    // Count consecutive chips and assign different weights
+    private int countConsecutive(int row, int column, int dRow, int dCol, Color color) {
+        int score = 0;
+        int count = 0;
+        for (int i = -3; i <= 3; i++) {
+            int r = row + i * dRow;
+            int c = column + i * dCol;
+            if (r >= 0 && r < ROWS && c >= 0 && c < COLUMNS && (grid[r][c] != null && grid[r][c].getFill().equals(color))) {
+                count++;
+            } else {
+                if (count == 2) score += 10;
+                else if (count == 3) score += 50;
+                else if (count >= 4) score += 1000;
+                count = 0;
+            }
+        }
+        if (count == 2) score += 10;
+        else if (count == 3) score += 50;
+        else if (count >= 4) score += 1000;
+        return score;
+    }
+
+    // Check for a win in any direction
+    private boolean checkWin(int row, int column, Color color) {
         return (checkDirection(row, column, 1, 0, color) + checkDirection(row, column, -1, 0, color) >= 3 ||
                 checkDirection(row, column, 0, 1, color) + checkDirection(row, column, 0, -1, color) >= 3 ||
                 checkDirection(row, column, 1, 1, color) + checkDirection(row, column, -1, -1, color) >= 3 ||
                 checkDirection(row, column, 1, -1, color) + checkDirection(row, column, -1, 1, color) >= 3);
     }
 
+    // Count consecutive chips in a specific direction
     private int checkDirection(int row, int column, int dRow, int dCol, Color color) {
         int count = 0;
         int r = row + dRow;
@@ -108,6 +241,7 @@ public class Connect4 extends Application {
         return count;
     }
 
+    // Disable all buttons after a win
     private void disableButtons() {
         for (int i = 0; i < COLUMNS; i++) {
             Button button = (Button) gridPane.getChildren().get(i);
