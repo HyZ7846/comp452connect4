@@ -70,7 +70,7 @@ public class Connect4 extends Application {
         }
 
         // Create a white chip
-        Circle chip = new Circle(TILE_SIZE / 2 - 5);
+        Circle chip = new Circle((double) TILE_SIZE / 2);
         chip.setFill(Color.WHITE);
         gridPane.add(chip, column, row);
         grid[row][column] = chip;
@@ -99,7 +99,7 @@ public class Connect4 extends Application {
         for (int col = 0; col < COLUMNS; col++) {
             int row = nextAvailableRow[col];
             if (row >= 1) {
-                grid[row][col] = new Circle(TILE_SIZE / 2 - 5, Color.BLACK);
+                grid[row][col] = new Circle((double) TILE_SIZE / 2, Color.BLACK);
                 nextAvailableRow[col]--;
                 int moveValue = minimax(0, false, Integer.MIN_VALUE, Integer.MAX_VALUE);
                 grid[row][col] = null;
@@ -113,7 +113,7 @@ public class Connect4 extends Application {
 
         if (bestColumn != -1) {
             int row = nextAvailableRow[bestColumn];
-            Circle chip = new Circle(TILE_SIZE / 2 - 5);
+            Circle chip = new Circle((double) TILE_SIZE / 2);
             chip.setFill(Color.BLACK);
             gridPane.add(chip, bestColumn, row);
             grid[row][bestColumn] = chip;
@@ -138,7 +138,7 @@ public class Connect4 extends Application {
             for (int col = 0; col < COLUMNS; col++) {
                 int row = nextAvailableRow[col];
                 if (row >= 1) {
-                    grid[row][col] = new Circle(TILE_SIZE / 2 - 5, Color.BLACK);
+                    grid[row][col] = new Circle((double) TILE_SIZE / 2, Color.BLACK);
                     nextAvailableRow[col]--;
                     int eval = minimax(depth + 1, false, alpha, beta);
                     grid[row][col] = null;
@@ -156,7 +156,7 @@ public class Connect4 extends Application {
             for (int col = 0; col < COLUMNS; col++) {
                 int row = nextAvailableRow[col];
                 if (row >= 1) {
-                    grid[row][col] = new Circle(TILE_SIZE / 2 - 5, Color.WHITE);
+                    grid[row][col] = new Circle((double) TILE_SIZE / 2, Color.WHITE);
                     nextAvailableRow[col]--;
                     int eval = minimax(depth + 1, true, alpha, beta);
                     grid[row][col] = null;
